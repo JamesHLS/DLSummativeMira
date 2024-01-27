@@ -27,12 +27,10 @@ def cycle(iterable):
 class_names = ['apple','aquarium_fish','baby','bear','beaver','bed','bee','beetle','bicycle','bottle','bowl','boy','bridge','bus','butterfly','camel','can','castle','caterpillar','cattle','chair','chimpanzee','clock','cloud','cockroach','couch','crab','crocodile','cup','dinosaur','dolphin','elephant','flatfish','forest','fox','girl','hamster','house','kangaroo','computer_keyboard','lamp','lawn_mower','leopard','lion','lizard','lobster','man','maple_tree','motorcycle','mountain','mouse','mushroom','oak_tree','orange','orchid','otter','palm_tree','pear','pickup_truck','pine_tree','plain','plate','poppy','porcupine','possum','rabbit','raccoon','ray','road','rocket','rose','sea','seal','shark','shrew','skunk','skyscraper','snail','snake','spider','squirrel','streetcar','sunflower','sweet_pepper','table','tank','telephone','television','tiger','tractor','train','trout','tulip','turtle','wardrobe','whale','willow_tree','wolf','woman','worm',]
 
 transform = transforms.Compose([
-    transforms.ColorJitter(brightness=0.5),
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomRotation(degrees=15),
+    transforms.RandomCrop(size=(32, 32), padding=4),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.ToTensor(),
-    # transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]),
+    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
 ])
 
 train_loader = torch.utils.data.DataLoader(
@@ -71,96 +69,54 @@ plt.show()
 
 
 
-# CNN image classifier
-class Classifier(nn.Module):
-    def __init__(self, params):
-        super(Classifier, self).__init__()
-        self.conv1 = nn.Conv2d(params['n_channels'], 16, 3, padding=1)
-        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
-        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(64 * 4 * 4, params['n_hidden'])
-        self.fc2 = nn.Linear(params['n_hidden'], params['n_classes'])
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x))) # 16 x 16 x 16
-        x = self.pool(F.relu(self.conv2(x))) # 8 x 8 x 32
-        x = self.pool(F.relu(self.conv3(x))) # 4 x 4 x 64
-        x = x.view(-1, 64 * 4 * 4)           # 1 x 1024
-        x = F.relu(self.fc1(x))              # 1 x 128
-        x = self.fc2(x)                      # 1 x 100
-        return x
-    
-
-# Define a modified ResNet block
 class SimpleResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super(SimpleResNetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.downsample = nn.Sequential()
+
+        self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
-            self.downsample = nn.Sequential(
+            self.shortcut = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(out_channels)
             )
 
     def forward(self, x):
-        identity = self.downsample(x)
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out += identity
-        out = self.relu(out)
+        out = torch.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = torch.relu(out)
         return out
 
-# Define a modified ResNet model with reduced parameters
 class SimpleResNet(nn.Module):
     def __init__(self, block, layers, num_classes=100):
         super(SimpleResNet, self).__init__()
-        self.in_channels = 8  # Decreased initial channels
-        self.conv1 = nn.Conv2d(3, self.in_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.in_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self.make_layer(block, 16, layers[0], stride=1)  # Decreased channels
-        self.layer2 = self.make_layer(block, 32, layers[1], stride=2)  # Decreased channels
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(32, num_classes)  # Decreased channels
+        self.in_channels = 16
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.layer1 = self._make_layer(block, 16, layers[0], stride=1)
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
+        self.linear = nn.Linear(32, num_classes)
 
-    def make_layer(self, block, out_channels, blocks, stride):
+    def _make_layer(self, block, out_channels, num_blocks, stride):
+        strides = [stride] + [1]*(num_blocks-1)
         layers = []
-        layers.append(block(self.in_channels, out_channels, stride))
-        self.in_channels = out_channels
-        for _ in range(1, blocks):
-            layers.append(block(out_channels, out_channels, stride=1))
+        for stride in strides:
+            layers.append(block(self.in_channels, out_channels, stride))
+            self.in_channels = out_channels
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-
-        return x
-
-# hyperparameters
-params = {
-    'n_channels': 3,  # number of channels
-    'n_hidden':   30, # change to increase parameters
-    'n_classes':  100 # number of classes for CIFAR-100
-}
-
+        out = torch.relu(self.bn1(self.conv1(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = torch.nn.functional.avg_pool2d(out, out.size()[3])
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
 
 
 
