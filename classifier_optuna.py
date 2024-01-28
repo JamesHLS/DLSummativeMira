@@ -120,7 +120,11 @@ class SimpleResNet(nn.Module):
     def forward(self, x):
         out = torch.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
-        out = self.layer2(out)
+        if self.layer2:
+            out = self.layer2(out)
+        if self.layer3:
+            out = self.layer3(out)
+
         out = torch.nn.functional.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
         out = self.linear(out)
