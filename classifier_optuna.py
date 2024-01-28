@@ -104,7 +104,7 @@ class SimpleResNet(nn.Module):
             pass
 
         try:
-            self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
+            self.layer3 = self._make_layer(block, 32, layers[2], stride=2)
         except:
             pass
         self.linear = nn.Linear(32, num_classes)
@@ -159,7 +159,7 @@ steps = 0
 import optuna
 
 
-def train_model(N, optimiser, train_iterator, device, steps=10000):
+def train_model(N, optimiser, train_iterator, device, steps=5000):
     # keep within our optimisation step budget
     current_step = 0
     while (current_step < steps):
