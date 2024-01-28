@@ -129,7 +129,7 @@ if len(torch.nn.utils.parameters_to_vector(N.parameters())) > 100000:
     print("> Warning: you have gone over your parameter budget and will have a grade penalty!")
 
 # initialise the optimiser
-optimiser = torch.optim.Adam(N.parameters(), lr=0.001)
+optimiser = torch.optim.Adam(N.parameters(), lr=0.017118313)
 plot_data = []
 steps = 0
 
