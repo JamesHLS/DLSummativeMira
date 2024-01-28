@@ -98,15 +98,10 @@ class SimpleResNet(nn.Module):
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.layer1 = self._make_layer(block, 16, layers[0], stride=1)
-        try:
-            self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        except:
-            pass
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
 
-        try:
-            self.layer3 = self._make_layer(block, 32, layers[2], stride=2)
-        except:
-            pass
+
+
         self.linear = nn.Linear(32, num_classes)
 
     def _make_layer(self, block, out_channels, num_blocks, stride):
@@ -120,14 +115,9 @@ class SimpleResNet(nn.Module):
     def forward(self, x):
         out = torch.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
-        try:
-            out = self.layer2(out)
-        except:
-            pass
-        try :
-            out = self.layer3(out)
-        except:
-            pass
+        out = self.layer2(out)
+
+
 
         out = torch.nn.functional.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
@@ -205,7 +195,7 @@ def validate_model(N, test_loader, device):
 def objective(trial):
     # Define hyperparameters using the trial object
     lr = trial.suggest_loguniform('lr', 1e-5, 1e-1)
-    num_layers = trial.suggest_int('num_layers', 1, 3)
+    num_layers = 2
     num_blocks = [trial.suggest_int('num_blocks_layer_{}'.format(i), 1, 3) for i in range(num_layers)]
     
     # Create the model
