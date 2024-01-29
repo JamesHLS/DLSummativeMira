@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from pytorch_lightning import LightningModule, Trainer
 import matplotlib.pyplot as plt
 from IPython import display as disp
 
@@ -83,6 +82,13 @@ class Generator(nn.Module):
         x = self.layer(x)
         x = F.interpolate(x, size=(32, 32))  # Resize the output to [32, 32]
         return x
+    
+    def sample(self, z):
+        x = self.forward(z)
+        return x.view(x.size(0), self.n_channels, 32, 32)
+    
+    
+
 
 
 # adapted from practical example https://github.com/atapour/dl-pytorch/blob/main/Conditional_GAN_Example/Conditional_GAN_Example.ipynb
@@ -142,7 +148,8 @@ print("Crtierion: ", criterion)
 
 # %%
 # keep within our optimisation step budget
-while (steps < 50000):
+# while (steps < 50000):
+while (steps < 10):
 
     # arrays for metrics
     logs = {}
@@ -150,9 +157,6 @@ while (steps < 50000):
     dis_loss_arr = np.zeros(0)
 
     for i, batch in enumerate(train_loader):
-
-        if i % 1000 == 0:
-            print(i, "/ 50000")
 
         x, t = batch
         x, t = x.to(device), t.to(device)
@@ -199,22 +203,36 @@ while (steps < 50000):
     #     loss_arr = np.append(loss_arr, loss.item())
 
 
-
-    print('steps {:.2f}, loss: {:.3f}'.format(steps, gen_loss_arr.mean()))
-    print('steps {:.2f}, loss: {:.3f}'.format(steps, dis_loss_arr.mean()))
-
     # sample model and visualise results (ensure your sampling code does not use x)
     G.eval()
-    g = G(torch.randn(x.size(0), 100).to(device))
-    samples = G.sample(g).cpu().detach()
+    # g = G(torch.randn(x.size(0), 100).to(device))
+    # samples = G.sample(g).cpu().detach()
     print('loss D: {:.3f}, loss G: {:.3f}'.format(gen_loss_arr.mean(), dis_loss_arr.mean()))
-    plt.imshow(torchvision.utils.make_grid(g).cpu().data.clamp(0,1).permute(0,2,1).contiguous().permute(2,1,0), cmap=plt.cm.binary)
-    plt.show()
-    plt.pause(0.0001)
+    # plt.imshow(torchvision.utils.make_grid(g).cpu().data.clamp(0,1).permute(0,2,1).contiguous().permute(2,1,0), cmap=plt.cm.binary)
+    # plt.show()
+    # plt.pause(0.0001)
     G.train()
     steps += 1
 
+# %% [markdown]
+# **Latent interpolations**
 
+# %%
+# now show some interpolations (note you do not have to do linear interpolations as shown here, you can do non-linear or gradient-based interpolation if you wish)
+col_size = int(np.sqrt(params['batch_size']))
+
+z0 = g[0:col_size].repeat(col_size,1) # z for top row
+z1 = g[params['batch_size']-col_size:].repeat(col_size,1) # z for bottom row
+
+t = torch.linspace(0,1,col_size).unsqueeze(1).repeat(1,col_size).view(params['batch_size'],1).to(device)
+
+lerp_z = (1-t)*z0 + t*z1 # linearly interpolate between two points in the latent space
+lerp_g = G.sample(lerp_z) # sample the model at the resulting interpolated latents
+
+plt.rcParams['figure.dpi'] = 100
+plt.grid(False)
+plt.imshow(torchvision.utils.make_grid(lerp_g).cpu().numpy().transpose(1, 2, 0), cmap=plt.cm.binary)
+plt.show()
 
 # %% [markdown]
 # **FID scores**
@@ -222,6 +240,7 @@ while (steps < 50000):
 # Evaluate the FID from 10k of your model samples (do not sample more than this) and compare it against the 10k test images. Calculating FID is somewhat involved, so we use a library for it. It can take a few minutes to evaluate. Lower FID scores are better.
 
 # %%
+%%capture
 import os
 from cleanfid import fid
 from torchvision.utils import save_image
@@ -235,8 +254,7 @@ num_samples = 10000 # do not change
 # create/clean the directories
 def setup_directory(directory):
     if os.path.exists(directory):
-        # !rm -r {directory} # remove any existing (old) data
-        os.removedirs(directory) # remove the directory
+        os.removedirs(directory)
     os.makedirs(directory)
 
 setup_directory(real_images_dir)
