@@ -30,7 +30,7 @@ transform = transforms.Compose([
     transforms.RandomCrop(size=(32, 32), padding=4),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.ToTensor(),
-    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    transforms.Normalize(mean=(0.43857235, 0.4181513, 0.37756214), std=(0.3003682, 0.28708798, 0.29360372)),
 ])
 
 train_loader = torch.utils.data.DataLoader(
@@ -38,7 +38,7 @@ train_loader = torch.utils.data.DataLoader(
     batch_size=64, drop_last=True)
 
 test_loader = torch.utils.data.DataLoader(
-    torchvision.datasets.CIFAR100('data', train=False, download=True, transform=transform),
+    torchvision.datasets.CIFAR100('data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])),
     batch_size=64, drop_last=True)
 
 train_iterator = iter(cycle(train_loader))
@@ -46,6 +46,8 @@ test_iterator = iter(cycle(test_loader))
 
 print(f'> Size of training dataset {len(train_loader.dataset)}')
 print(f'> Size of test dataset {len(test_loader.dataset)}')
+
+
 
 # %% [markdown]
 # **View some of the test dataset**
@@ -68,7 +70,7 @@ plt.show()
 # %%
 
 
-
+# https://github.com/NERSC/pytorch-examples/blob/main/models/resnet_cifar10.py
 class SimpleResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super(SimpleResNetBlock, self).__init__()
