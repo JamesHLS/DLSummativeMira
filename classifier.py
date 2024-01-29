@@ -38,7 +38,7 @@ train_loader = torch.utils.data.DataLoader(
     batch_size=64, drop_last=True)
 
 test_loader = torch.utils.data.DataLoader(
-    torchvision.datasets.CIFAR100('data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])),
+    torchvision.datasets.CIFAR100('data', train=False, download=True, transform=transform),
     batch_size=64, drop_last=True)
 
 train_iterator = iter(cycle(train_loader))
