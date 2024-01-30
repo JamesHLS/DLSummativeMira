@@ -232,7 +232,7 @@ criterion = nn.BCELoss()
 
 fixed_noise = torch.randn(64, z_dim, 1, 1).to(device)
 step = 0
-max_steps = 1500
+max_steps = 50000
 
 G.train()
 D.train()
