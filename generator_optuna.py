@@ -207,11 +207,15 @@ test()
 # MINIMIZE FID SCORE
 
 def objective(trial):
-    z_dim = trial.suggest_categorical("z_dim", [40, 50, 60])
     features_d = trial.suggest_int("features_d", 10, 15)
     features_g = trial.suggest_int("features_g", 10, 15)
     learning_rate = trial.suggest_categorical("learning_rate", [0.0001, 0.0002, 0.0003, 0.0004, 0.0005])
     num_epochs = trial.suggest_categorical("num_epochs", [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65])
+    params = {
+    'batch_size': batch_size,
+    'n_channels': channels_img,
+    'n_latent': z_dim # alters number of parameters
+}
     D = Discriminator(channels_img, features_d).to(device)
     G = Generator(z_dim, channels_img, features_g).to(device)
 
@@ -298,6 +302,9 @@ def objective(trial):
 
     z = torch.randn(64, z_dim, 1, 1).to(device)
 
+    d_loss_mean = np.mean(d_losses)
+    g_loss_mean = np.mean(g_losses)
+
 
     """**FID scores**
 
@@ -352,6 +359,7 @@ def objective(trial):
     # compute FID
     score = fid.compute_fid(real_images_dir, generated_images_dir, mode="clean")
     print(f"FID score: {score}")
+
     return score
 
 
